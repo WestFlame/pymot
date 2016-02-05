@@ -1,5 +1,6 @@
 from utilities import write_stderr_red
 
+
 class FormatChecker:
 
     def __init__(self, groundtruth, hypotheses):
@@ -7,7 +8,6 @@ class FormatChecker:
 
         self.groundtruth_ = groundtruth
         self.hypotheses_ = hypotheses
-
 
     def checkForAmbiguousIDs(self):
         """Check ground truth and hypotheses for multiple use of the same id per frame"""
@@ -37,8 +37,7 @@ class FormatChecker:
                 else:
                     ids.add(hypothesis["id"])
 
-        return result # true: OK, false: ambiguous id found
-
+        return result  # true: OK, false: ambiguous id found
 
     def checkForExistingIDs(self):
         """Check ground truth and hypotheses for having a valid id. Valid: existing and non-empty."""
@@ -71,8 +70,7 @@ class FormatChecker:
                     result &= False
                     continue
 
-        return result # true: OK, false: missing id found
-
+        return result  # true: OK, false: missing id found
 
     def checkForCompleteness(self):
         """Check ground truth and hypotheses for containing width, height, x and y"""
@@ -95,4 +93,4 @@ class FormatChecker:
                         write_stderr_red("Warning:", "Hypothesis without key %s found, timestamp %f, frame %d!" % (key, f["timestamp"], f["num"] if "num" in f else -1))
                         result &= False
 
-        return result # true: OK, false: missing id found
+        return result  # true: OK, false: missing id found

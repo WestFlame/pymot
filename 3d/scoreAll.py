@@ -10,7 +10,7 @@ def getCommandOutput(command):
     data = child.read()
     err = child.close()
     if err:
-        print '%s failed w/ exit code %d' % (command,err)
+        print('%s failed w/ exit code %d' % (command,err))
         return None
     return data
 
@@ -26,7 +26,7 @@ def main():
 
     argc=len(sys.argv)
     if argc==4:
-	for argind,arg in enumerate(sys.argv):
+        for argind,arg in enumerate(sys.argv):
             if argind==1:
                 labelBase = arg
             if argind==2:
@@ -35,7 +35,7 @@ def main():
                 mode = arg
 
     else:
-        print "Usage: scoreAll.py <label file base directory> <hypo file directory> <'V'/'A'/'M': Visual/Acoustic/Multimodal task>"
+        print("Usage: scoreAll.py <label file base directory> <hypo file directory> <'V'/'A'/'M': Visual/Acoustic/Multimodal task>")
         sys.exit()
                         
     if mode == "V":
@@ -45,7 +45,7 @@ def main():
     elif mode == "M":
         lab3dName = lab3dNameM
     else:
-        print "Only flags 'V', 'A' or 'M' for Visual, Acoustic or Multimodal task scoring are available"
+        print("Only flags 'V', 'A' or 'M' for Visual, Acoustic or Multimodal task scoring are available")
         sys.exit()
 
     ### accumulation buffers
@@ -61,8 +61,8 @@ def main():
     ### run scoring script
 
     for root, dirs, files in os.walk(hypoPath):
-	files.sort()
-	for file in files:
+        files.sort()
+        for file in files:
             fileEnding = file[-3:]
             if fileEnding == ".PT":
                 hypos=hypoPath + "/" + file
@@ -79,12 +79,12 @@ def main():
                 #labels=labelBase + "/" + subdir + "/" + semName + "/" + subseg + "/" + semName + "_" + lab3dName
                 labels=labelBase + "/" + semName + "/" + semName + "_" + lab3dName
 
-                print hypos
-                print labels
+                print(hypos)
+                print(labels)
 
                 # run command
 
-                print "*** SEGMENT #",file[:-3]
+                print("*** SEGMENT #",file[:-3])
                 if mode == "A":
                     flag = "yes"
                 else:
@@ -92,7 +92,7 @@ def main():
                 cmd = "./MOTscore.pl %s %s %s" % (labels, hypos, flag)
                 #print cmd
                 out = getCommandOutput(cmd)
-                print out
+                print(out)
 
                 # parse command output
                 
@@ -108,24 +108,24 @@ def main():
 
     ### calculate accumulated results
 
-    print "\n"
+    print("\n")
     #print "SYSTEM: %s" % (hypoPath)
     #print "GROUND TRUTH %s" % (labelBase)
 
     if mode == "A":
-        print "********** TOTAL SUMMARY *********************************************"
-        print "MOTP                    %.0fmm" % (distance/corr)
-        print "MISS RATE               %.2f%%" % (100.0 * miss/groundT)
-        print "FALSEPOS RATE           %.2f%%" % (100.0 * falseP/groundT)
-        print "M/FP RATE (Loc Err > T) %.2f%%" % (100.0 * fcorr/groundT)
-        print "A-MOTA                  %.2f%%" % (100.0 * (1.0 - (miss + falseP)/groundT))
+        print("********** TOTAL SUMMARY *********************************************")
+        print("MOTP                    %.0fmm" % (distance/corr))
+        print("MISS RATE               %.2f%%" % (100.0 * miss/groundT))
+        print("FALSEPOS RATE           %.2f%%" % (100.0 * falseP/groundT))
+        print("M/FP RATE (Loc Err > T) %.2f%%" % (100.0 * fcorr/groundT))
+        print("A-MOTA                  %.2f%%" % (100.0 * (1.0 - (miss + falseP)/groundT)))
     else:
-        print "********** TOTAL SUMMARY *********************************************"
-        print "MOTP         %.0fmm" % (distance/corr)
-        print "MISSRATE     %.2f%%" % (100.0 * miss/groundT)
-        print "FALSEPOSRATE %.2f%%" % (100.0 * falseP/groundT)
-        print "MISMATCHES   %d(%.2f%%)" % (mismatch, 100.0 * mismatch/groundT)
-        print "MOTA         %.2f%%" % (100.0 * (1.0 - (miss + falseP + mismatch)/groundT))
+        print("********** TOTAL SUMMARY *********************************************")
+        print("MOTP         %.0fmm" % (distance/corr))
+        print("MISSRATE     %.2f%%" % (100.0 * miss/groundT))
+        print("FALSEPOSRATE %.2f%%" % (100.0 * falseP/groundT))
+        print("MISMATCHES   %d(%.2f%%)" % (mismatch, 100.0 * mismatch/groundT))
+        print("MOTA         %.2f%%" % (100.0 * (1.0 - (miss + falseP + mismatch)/groundT)))
         
 if __name__ == "__main__":
     main()

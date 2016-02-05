@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 class Rect:
     """Common class for both ground truth objects and hypothesis objects"""
 
@@ -27,7 +28,7 @@ class Rect:
     
     def intersect(self, o):
         """Create new Rect from intersection of self and o. Cave: id and dco will be lost."""
-        box = {}
+        box = dict()
         box["x"] = max(self.x_, o.x_)
         box["y"] = max(self.y_, o.y_)
         box["width"] = max(0, min(self.x_ + self.w_, o.x_ + o.w_) - box["x"])

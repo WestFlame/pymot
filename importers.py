@@ -2,13 +2,14 @@
 
 from collections import deque
 
+
 def MOT_hypo_import(lines):
     
     frames = []
     
     for line in lines:
-#        print line
-        s = deque(line.strip().split()) # any whitespace
+        # print line
+        s = deque(line.strip().split())  # any whitespace
 
         # Skip empty lines
         if len(s) < 1:
@@ -27,8 +28,8 @@ def MOT_hypo_import(lines):
                 'id':     s[5*i + 0],
                 'x':      float(s[5*i + 1]),
                 'y':      float(s[5*i + 2]),
-                'width':  float(s[5*i + 3]) - float(s[5*i + 1]), # x - tl_x
-                'height': float(s[5*i + 4]) - float(s[5*i + 2]), # y - tl_y
+                'width':  float(s[5*i + 3]) - float(s[5*i + 1]),  # x - tl_x
+                'height': float(s[5*i + 4]) - float(s[5*i + 2]),  # y - tl_y
             }
             hypotheses.append(hypo)
     
@@ -48,12 +49,12 @@ def MOT_hypo_import(lines):
     return fileitem
 
 
-def MOT_groundtruth_import(lines): # TODO rename, since we do not create json
+def MOT_groundtruth_import(lines):  # TODO rename, since we do not create json
     
     frames = []
     
     for line in lines:
-        s = deque(line.strip().split()) # any whitespace
+        s = deque(line.strip().split())  # any whitespace
         
         # Skip empty lines
         if len(s) < 1:
