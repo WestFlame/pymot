@@ -259,8 +259,10 @@ class MOTEvaluation:
             # Correspondence: A-1
             # Mapping: A-2, B-1
             # We have to detect both forms of conflicts
-            for mapping_gt_id, mapping_hypo_id in self.mappings_.items():
-                
+            original_mappings = self.mappings_.copy()
+            # for mapping_gt_id, mapping_hypo_id in self.mappings_.items():
+            for mapping_gt_id, mapping_hypo_id in original_mappings.items():
+
                 # CAVE: Other than in perl script:
                 # Do not consider for mismatch, if both old gt and new gt are DCO
                 gt_with_mapping_gt_id_dco = list(filter(lambda g: g["id"] == mapping_gt_id and g.get("dco",False), groundtruths))
@@ -278,8 +280,8 @@ class MOTEvaluation:
                         self.mismatches_ = self.mismatches_ + 1
 
                         # find groundtruth and hypothesis with given ids
-                        g = filter(lambda g: g["id"] == gt_id, groundtruths)
-                        h = filter(lambda h: h["id"] == hypo_id, hypotheses)
+                        g = list(filter(lambda g: g["id"] == gt_id, groundtruths))
+                        h = list(filter(lambda h: h["id"] == hypo_id, hypotheses))
 
                         # assert(len(g) == 1)
                         if len(g) != 1:
