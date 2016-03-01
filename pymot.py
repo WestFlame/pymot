@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 
 import sys
+
 import json
 import argparse
 from munkres import Munkres
+import logging
+
 from rect import Rect
 from importers import MOT_hypo_import
 from importers import MOT_groundtruth_import
 from formatchecker import FormatChecker
 from utilities import write_stderr_red
-import logging
+
 LOG = logging.getLogger(__name__)
 
 
@@ -57,7 +60,6 @@ class MOTEvaluation:
         # List of dicts, containing ground truths and hypotheses for visual debugging
         self.visualDebugFrames_ = []
 
-
     def get_hypotheses_frame(self, timestamp):
         """Get list of hypotheses occuring chronologically close to ground truth timestamp, but at most with time difference self.sync_delta"""
         
@@ -67,8 +69,8 @@ class MOTEvaluation:
 
         # Hypotheses frames which are chronologically close to timestamp 
         # Use binary search, if this is to slow for you :)P
-        hypotheses_frames = list(filter(hypothesis_frame_chronologically_close, self.hypotheses_["frames"]))
-        
+        hypotheses_frames = [h for h in self.hypotheses_['frames'] if hypothesis_frame_chronologically_close(h)]
+
         # We expect at most one hypotheses timestamp.
         if len(hypotheses_frames) > 1:
             raise Exception("> 1 hypotheses timestamps found for timestamp %f with sync delta %f" % (timestamp, self.sync_delta_))
@@ -102,13 +104,13 @@ class MOTEvaluation:
         # Save occuring hypothesis ids
         for h in hypotheses:
             self.hypothesis_ids_.add(h["id"])
-        
+
         LOG.info("")
         LOG.info("Timestamp: %s" % timestamp)
-        
+
         LOG.info("DIFF")
         LOG.info("DIFF Time %.2f" % timestamp)
-        
+
         logstr = ["DIFF Mappings:"]
         for gt_id in sorted(self.mappings_.keys()):
             logstr.append("%s-%s" % (gt_id, self.mappings_[gt_id]))
@@ -131,20 +133,22 @@ class MOTEvaluation:
         # Valid mappings skip Munkres algorithm, if both ground truth and hypo are found in this frame
         # We call these pairs correspondences and fill the list each frame.
         correspondences = {}  # truth id -> hypothesis id
-        
+
         listofprints = []
         LOG.info("")
         LOG.info("STEP 1: KEEP CORRESPONDENCE")
         # print "DIFF Keep correspondence"
 
         for gt_id in self.mappings_.keys():
-            groundtruth = list(filter(lambda g: g["id"] == gt_id, groundtruths))  # Get ground truths with given ground truth id in current frame
+            # Get ground truths with given ground truth id in current frame
+            groundtruth = [g for g in groundtruths if g['id'] == gt_id]
             if len(groundtruth) > 1:
                 LOG.warning("found %d > 1 ground truth tracks for id %s", len(groundtruth), gt_id)
             elif len(groundtruth) < 1:
                 continue
 
-            hypothesis = list(filter(lambda h: h["id"] == self.mappings_[gt_id], hypotheses))  # Get hypothesis with hypothesis id according to mapping
+            # Get hypothesis with hypothesis id according to mapping
+            hypothesis = [h for h in hypotheses if h['id'] == self.mappings_[gt_id]]
             assert len(hypothesis) <= 1
             if len(hypothesis) != 1:
                 continue
@@ -167,26 +171,26 @@ class MOTEvaluation:
         LOG.info("STEP 2: FIND CORRESPONDENCE")
 
         # Fill hungarian matrix with +inf
-        munkres_matrix = [ [ self.munkres_inf_ for i in range(len(hypotheses)) ] for j in range(len(groundtruths)) ] # TODO make square matrix
+        munkres_matrix = [[self.munkres_inf_ for i in range(len(hypotheses))] for j in range(len(groundtruths))]  # TODO make square matrix
 
         # Find correspondences
         for i in range(len(groundtruths)):
             groundtruth = groundtruths[i]
-            
+
             # Skip groundtruth with correspondence from mapping
             if groundtruth["id"] in correspondences.keys():
                 LOG.info("Groundtruth %s already in correspondence" % groundtruth["id"])
                 continue
-            
+
             # Fill hungarian matrix with distance between gts and hypos
             for j in range(len(hypotheses)):
                 hypothesis = hypotheses[j]
-                
+
                 # Skip hypotheses with correspondence from mapping
                 if hypothesis["id"] in correspondences.values():
                     LOG.info("Hypothesis %s already in correspondence" % hypothesis["id"])
                     continue
-                
+
                 rect_groundtruth = Rect(groundtruth)
                 rect_hypothesis = Rect(hypothesis)
                 overlap = rect_groundtruth.overlap(rect_hypothesis)
@@ -195,10 +199,10 @@ class MOTEvaluation:
                     # print "Fill Hungarian", rect_groundtruth, rect_hypothesis, overlap
                     munkres_matrix[i][j] = 1 / overlap
                     LOG.info("DIFF candidate %s %s %.2f" % (groundtruth["id"], hypothesis["id"], overlap))
-        
+
         # Do the Munkres
         LOG.debug(munkres_matrix)
-        
+
         # Only run munkres on non-empty matrix
         if len(munkres_matrix) > 0:
             m = Munkres()
@@ -212,7 +216,7 @@ class MOTEvaluation:
         mismatcheslist = []
 
         for gt_index, hypo_index in indices:
-            
+
             # Skip invalid self.mappings_
             # Check for max float distance matches (since Hungarian returns complete mapping)
             if munkres_matrix[gt_index][hypo_index] == self.munkres_inf_:  # NO correspondence <=> overlap >= thresh
@@ -220,7 +224,7 @@ class MOTEvaluation:
 
             gt_id   = groundtruths[gt_index]["id"]
             hypo_id = hypotheses[hypo_index]["id"]
-            
+
             # Assert no known mappings have been added to hungarian, since keep correspondence should have considered this case.
             if gt_id in self.mappings_:
                 assert self.mappings_[gt_id] != hypo_id 
@@ -231,7 +235,6 @@ class MOTEvaluation:
             correspondencelist.append("DIFF correspondence %s %s" % (gt_id, hypo_id))
             correspondences[gt_id] = hypo_id
             self.total_overlap_ += overlap
-            
 
             # Count "recoverable" and "non-recoverable" mismatches
             # "recoverable" mismatches
@@ -243,9 +246,9 @@ class MOTEvaluation:
             if hypo_id in self.hypo_map_ and self.hypo_map_[hypo_id] != gt_id:
                 # Do not count non-recoverable mismatch, if both old ground truth and current ground truth are DCO.
                 old_gt_id = self.hypo_map_[hypo_id]
-                old_gt_dco = filter(lambda g: g["id"] == old_gt_id and g.get("dco",False), groundtruths)
+                old_gt_dco = [g for g in groundtruths if g['id'] == old_gt_id and g.get('dco', False)]
 
-                assert len(old_gt_dco) <= 1;
+                assert len(old_gt_dco) <= 1
                 if not (groundtruths[gt_index].get("dco",False) and len(old_gt_dco) == 1):
                     LOG.info("Look ma! We got a non-recoverable mismatch over here! (%s-%s) -> (%s-%s)" % (self.hypo_map_[hypo_id], hypo_id, gt_id, hypo_id))
                     self.non_recoverable_mismatches_ += 1
@@ -265,7 +268,7 @@ class MOTEvaluation:
 
                 # CAVE: Other than in perl script:
                 # Do not consider for mismatch, if both old gt and new gt are DCO
-                gt_with_mapping_gt_id_dco = list(filter(lambda g: g["id"] == mapping_gt_id and g.get("dco",False), groundtruths))
+                gt_with_mapping_gt_id_dco = [g for g in groundtruths if g['id'] == mapping_gt_id and g.get('dco', False)]
                 if len(gt_with_mapping_gt_id_dco) == 1 and groundtruths[gt_index].get("dco",False):
                     LOG.info("Ground truths %s and %s are DCO. Not considering for mismatch." % (mapping_gt_id, gt_id))
                     # print("DIFF DCO %s" % (gt_id), groundtruths[gt_index])
@@ -277,11 +280,11 @@ class MOTEvaluation:
                     or (mapping_gt_id != gt_id and mapping_hypo_id == hypo_id):
                         LOG.info("Correspondence %s-%s contradicts mapping %s-%s. Counting as mismatch and updating mapping." % (gt_id, hypo_id, mapping_gt_id, mapping_hypo_id))
                         mismatcheslist.append("DIFF Mismatch %s-%s -> %s-%s" % (mapping_gt_id, mapping_hypo_id, gt_id, hypo_id))
-                        self.mismatches_ = self.mismatches_ + 1
+                        self.mismatches_ += 1
 
                         # find groundtruth and hypothesis with given ids
-                        g = list(filter(lambda g: g["id"] == gt_id, groundtruths))
-                        h = list(filter(lambda h: h["id"] == hypo_id, hypotheses))
+                        g = [g for g in groundtruths if g['id'] == gt_id]
+                        h = [h for h in hypotheses if h['id'] == hypo_id]
 
                         # assert(len(g) == 1)
                         if len(g) != 1:
@@ -511,11 +514,11 @@ class MOTEvaluation:
 
     def resetMapping(self):
         """Reset mapping. Useful for loading new ground truth and hypo and not counting shot-boundary caused mismatches."""
-        self.mappings_ = {} # Mappings from ground truth id to hypothesis id, as described in paper: M_t (initial M_0 empty)
+        self.mappings_ = {}  # Mappings from ground truth id to hypothesis id, as described in paper: M_t (initial M_0 empty)
 
         # Helper dicts for "recoverable" and "non-recoverable" mismatch detection aka Yin Yang
-        self.gt_map_ = {} # save most recent hypothesis id for each groundtruth id. Only updates, no deletions of keys
-        self.hypo_map_ = {} # save move recent groundtruth id for each hypothesis id. Only updates, no deletions of keys.
+        self.gt_map_ = {}  # save most recent hypothesis id for each groundtruth id. Only updates, no deletions of keys
+        self.hypo_map_ = {}  # save move recent groundtruth id for each hypothesis id. Only updates, no deletions of keys.
 
     def resetStatistics(self):
         """Reset counters and mapping."""
@@ -548,7 +551,7 @@ if __name__ == "__main__":
 
     # Load ground truth according to format
     # Assume MOT format, if non-json
-    gt = open(args.groundtruth) # gt file
+    gt = open(args.groundtruth)  # gt file
     if args.groundtruth.endswith(".json"):
         groundtruth = json.load(gt)[0]
     else:
@@ -556,7 +559,7 @@ if __name__ == "__main__":
     gt.close()
 
     # Load MOT format files
-    hypo = open(args.hypothesis) # hypo file
+    hypo = open(args.hypothesis)  # hypo file
     if args.hypothesis.endswith(".json"):
         hypotheses = json.load(hypo)[0]
     else:
@@ -565,7 +568,7 @@ if __name__ == "__main__":
 
     evaluator = MOTEvaluation(groundtruth, hypotheses)
 
-    if(args.check_format):
+    if args.check_format:
         formatChecker = FormatChecker(groundtruth, hypotheses)
         success = formatChecker.checkForExistingIDs()
         success |= formatChecker.checkForAmbiguousIDs()
